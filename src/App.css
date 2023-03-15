@@ -1,5 +1,17 @@
+#root {
+  display: flex;
+  min-height: 100vh;
+}
+
 .App {
-  text-align: center;
+  flex: 1 0 50%;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+}
+
+.App >:nth-child(n) {
+  flex-grow: 1;
 }
 
 .App-logo {
@@ -35,4 +47,10 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }

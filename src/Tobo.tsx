@@ -4,7 +4,6 @@ import {observer} from "mobx-react-lite";
 const Tobo = observer(() => {
     return (
         <div>
-            {to}
         </div>
     );
 });

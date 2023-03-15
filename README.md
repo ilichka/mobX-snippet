@@ -12,13 +12,13 @@ Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 The page will reload if you make edits.\
 You will also see any lint errors in the console.
 
-Install required dependencies: 
+## Install required dependencies: 
 
 ### `npm install mobx-react` &larr; for class components
 ### `npm install mobx-react-lite` &larr; for functional components
 ### `npm install mobx`
 
-What is mobX?
+## What is mobX?
 MobX is a battle-tested library that makes state management simple and scalable by transparently applying functional reactive programming.
 
 The philosophy behind MobX is simple:
@@ -43,23 +43,77 @@ that depend on the changes being made.
 
 This conceptual picture can be applied to any application using MobX.
 
-Create `store` folder. Here we will store all logic according to mobX. Create 
-counter.ts and export an instance ot Counter class: 
+## Practical examples
+
+Create `store` folder. Here we will store all logic according to **mobX**. Setup structure
+of our store and create following folders: 
+- `context` - here we will work with context and provider to our store.
+- `entities` - here we will store of our entities of store.
+- `hooks` - here we will store all hook, which works with our store.
+
+As well create `index.ts` and `store.ts` to export all needed tools and create store accordingly.
+
+First of all we need to create a `rootStore` to collect all our `entities` in one place:
 
 ```typescript
-class Counter {
+import {CounterStore} from "../counter";
+import {TodoStore} from "../todo";
 
+export class RootStore {
+    counter: CounterStore
+    todo: TodoStore
+
+    constructor() {
+        this.counter = new CounterStore(this)
+        this.todo = new TodoStore(this)
+    }
+
+    init = () => {
+        //init func
+    }
 }
-
-export default new Counter()
 ```
 
-Constructor required in this class, so lets add it: 
+To access to our `rootStore` we will create a hooke `useStore`:
 
 ```typescript
-class Counter {
+import { useContext } from 'react';
+
+import { Context } from '../context';
+import { RootStore } from '../entities/root';
+
+export const useStore = (): RootStore => {
+    const rootStore = useContext(Context);
+
+    if (!rootStore) {
+        throw new Error('useStore must be used within a StoreProvider');
+    }
+
+    return rootStore;
+};
+```
+
+Create `counter.store.ts` in `entities` folder and export an instance of `CounterStore` class from `index.ts`
+in the same folder: 
+
+```typescript
+export class CounterStore {
+
+}
+```
+
+Constructor is required in this class, so let's add it:
+
+```typescript
+class CounterStore {
     constructor() {
         makeAutoObservable(this)
+        /*makeObservable({
+            value: observable, <- if it is a value
+            double: computed, <- if it is a computed value
+            increment: action, <- if it is an action
+            fetch: flow <- if it is a flow
+        })*/
     }
 }
 ```
@@ -71,7 +125,7 @@ our class.
 In our class we create variables, that would be our state: 
 
 ```typescript
-class Counter {
+class CounterStore {
     count: number = 0
     constructor() {
         makeAutoObservable(this)
@@ -84,7 +138,7 @@ with redux state in mobx is mutable. So, if we just change one of variables in s
 will notice it and will rerender our component: 
 
 ```typescript
-   class Counter {
+export class CounterStore {
     count: number = 0
     constructor() {
         makeAutoObservable(this)
@@ -100,10 +154,10 @@ will notice it and will rerender our component:
 }
 ```
  
-Now lets move to our counter `component`. To make our component observable we have to wrap it
+Now let's move to our counter `component`. To make our component observable we have to wrap it
 in `observer` function. Now if state changes, our component would rerender.
 
-Lets investigate how to work with objects and async code in mobx.
+Let's investigate how to work with objects and async code in mobx.
 
 Create todo class.
 
@@ -116,7 +170,7 @@ export interface TodoItem {
     completed: boolean
 }
 
-class Todo {
+export class TodoStore {
     todos: TodoItem[] = [
         {id: 1, title: 'Title 1', completed: false},
         {id: 2, title: 'Title 2', completed: false},
@@ -139,11 +193,9 @@ class Todo {
         this.todos = this.todos.map(todoItem => todoItem.id === todo.id ? {...todoItem, completed: !todoItem.completed} : todoItem)
     }
 }
-
-export default new Todo()
 ```
 
-When we render this list of our todo its better to make in additional components, because 
+When we render this list of our todo it's better to make in additional components, because 
 mobx needs to observe only this list, not the whole component. Also use correct
 keys in list, to make mobx work correctly.
 
@@ -163,7 +215,7 @@ export interface TodoTitle {
     value: string
 }
 
-class Todo {
+export class TodoStore {
     todos: TodoItem[] = [
         {id: 1, title: {id: 1, value:'Title 1'}, completed: false},
         {id: 2, title: {id: 2, value:'Title 2'}, completed: false},
@@ -171,7 +223,7 @@ class Todo {
     ]
 
     constructor() {
-        makeAutoObservable(this)
+        makeAutoObservable(this, {}, {deep: true})
     }
 
     addTodo(todo: TodoItem) {
@@ -186,8 +238,6 @@ class Todo {
         this.todos = this.todos.map(todoItem => todoItem.id === todo.id ? {...todoItem, completed: !todoItem.completed} : todoItem)
     }
 }
-
-export default new Todo()
 ```
 
 In this case we need to modify our `makeAutoObservable` method:
@@ -196,25 +246,119 @@ Properties are observable, methods are actions and here method also could be
 a computed property. But in `makeAutoObservable` it makes no sense to use it, cause this function makes it automatically. If you
 want to detail your store just use `makeObservable` instead.
 - Add third parameter to pass options. Here we need to make deep observing,
-so make option `deep = true`.
+so make option `deep: true`. Also, here it is prefers to use property `autoBind: true`  to automatically bind a method to 
+the correct instance, so that this is always correctly bound inside the function.
 
 ## Computed values in mobx
 
 Create timer variable in counter. To create a computed property we just need to mark our method as
-get method. The sense of it is to return a result of sum calculations. For example
+`get` method. The sense of it is to return a result of sum calculations. For example,
 we add to the string sum of timer and counter. And the advantage of this is that this
-function gonna call only if one of this parameters would change, aka `useCallback` in react.
+function going to call only if one of this parameters would change, aka `useCallback` in react.
+
+```typescript
+export class CounterStore {
+    rootStore: RootStore
+    count: number = 0
+    timer: number = 60;
+    constructor(rootStore: RootStore) {
+        makeAutoObservable(this)
+
+        this.rootStore = rootStore
+    }
+
+    increment() {
+        this.count += 1
+    }
+
+    decrement() {
+        this.count -= 1
+    }
+
+    get total() {
+        return `Count + timer = ${this.count + this.timer}`
+    }
+}
+```
+
+Best practice:
+
+1. They should not have side effects or update other observables.
+2. Avoid creating and returning new observables.
+3. They should not depend on non-observable values.
 
 ## Async actions
 
 The realisation of async actions in mobx is more simple than in redux. Example:
 
 ```typescript
-fetchTodo() {
+export class TodoStore {
+    //...
+
+    fetchTodo() {
         fetch('https://jsonplaceholder.typicode.com/todos')
             .then(response => response.json())
             .then(json => {
                 this.todos.push(json)
             })
     }
+}
 ```
+
+In mobX we have an ability to work with functions-generators. All we need is to mark this function as 
+a `flow` instead of action and make if function generator: 
+
+```typescript
+import { flow, makeAutoObservable, flowResult } from "mobx"
+
+class Store {
+    githubProjects = []
+    state = "pending"
+
+    constructor() {
+        makeAutoObservable(this, {
+            fetchProjects: flow
+        })
+    }
+
+    // Note the star, this a generator function!
+    *fetchProjects() {
+        this.githubProjects = []
+        this.state = "pending"
+        try {
+            // Yield instead of await.
+            const projects = yield fetchGithubProjectsSomehow()
+            const filteredProjects = somePreprocessing(projects)
+            this.state = "done"
+            this.githubProjects = filteredProjects
+            return projects
+        } catch (error) {
+            this.state = "error"
+        }
+    }
+}
+
+const store = new Store()
+const projects = await flowResult(store.fetchProjects())
+```
+
+Main concept is:
+1. Instead of async use `function *`.
+2. Instead of `await` use `yield`.
+3. `makeAutoObservable` will automatically infer generators to be `flows`.
+
+Another neat benefit of flows is that they are cancellable.  The return value of flow is a promise
+that resolves with the value that is returned from the generator function in the end. 
+The returned promise has an additional `cancel()` method that will interrupt the running 
+generator and cancel it. Any try / finally clauses will still be run.
+
+## MobX SSR
+
+If observer is used in server side rendering context make sure to call `enableStaticRendering(true)`, so that observer 
+won't subscribe to any observables used, and no GC problems are introduced.
+
+## Observer vs React.memo 
+
+`observer` automatically applies `memo`, so observer components never need to be wrapped in `memo`. `memo` can be applied safely 
+to observer components because mutations (deeply) inside the props will be picked up by observer anyway if relevant.
+
